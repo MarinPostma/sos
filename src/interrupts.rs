@@ -49,19 +49,37 @@ pub fn init_idt() {
 }
 
 extern "x86-interrupt" fn keyboard_interupt_handler(_stack_frame: &mut InterruptStackFrame) {
+    use pc_keyboard::{layouts, DecodedKey, Keyboard, ScancodeSet1};
+    use spin::Mutex;
     use x86_64::instructions::port::Port;
 
+    lazy_static! {
+        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> =
+            Mutex::new(Keyboard::new(layouts::Us104Key, ScancodeSet1));
+    }
+
+    let mut keyboard = KEYBOARD.lock();
     let mut port = Port::new(0x60);
+
     let scancode: u8 = unsafe { port.read() };
-    print!("{}", scancode);
+
+    if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
+        if let Some(key) = keyboard.process_keyevent(key_event) {
+            match key {
+                DecodedKey::Unicode(character) => print!("{}", character),
+                DecodedKey::RawKey(key) => print!("{:?}", key),
+            }
+        }
+    }
 
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InteruptIndex::Keyboard.as_u8());
     }
 }
+
 extern "x86-interrupt" fn timer_interupt_handler(_stack_frame: &mut InterruptStackFrame) {
-    print!(".");
+    //print!(".");
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InteruptIndex::Timer.as_u8());
