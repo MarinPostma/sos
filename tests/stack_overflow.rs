@@ -13,7 +13,7 @@ lazy_static! {
         let mut idt = InterruptDescriptorTable::new();
         unsafe {
             idt.double_fault
-                .set_handler_fn(test_double_fault_handler);
+                .set_handler_fn(test_double_fault_handler)
                 .set_stack_index(blog_os::gdt::DOUBLE_FAULT_IST_INDEX);
         }
 
